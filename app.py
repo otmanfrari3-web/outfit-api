@@ -11,7 +11,6 @@ session = requests.Session()
 
 # ========== إعدادات API (باسمك) ==========
 API_KEY = "OTMAN-V2"                     # مفتاح API الخاص بك
-DEV_NAME = "@otman_v2"                   # اسمك الذي سيظهر على الصورة
 BACKGROUND_FILENAME = "outfit.png"       # الصورة الخلفية
 IMAGE_TIMEOUT = 8
 CANVAS_SIZE = (500, 500)
@@ -58,7 +57,7 @@ def home():
     return jsonify({
         "name": "OTMAN OUTFIT API",
         "version": "2.0",
-        "developer": DEV_NAME,
+        "developer": "@otman_v2",
         "endpoints": {
             "/render?uid=UID&key=API_KEY": "جلب صورة اللاعب",
             "/health": "فحص حالة API"
@@ -69,7 +68,7 @@ def home():
 def health():
     return jsonify({
         "status": "healthy",
-        "developer": DEV_NAME,
+        "developer": "@otman_v2",
         "api_key": API_KEY
     })
 
@@ -149,15 +148,15 @@ def outfit_image():
     canvas = Image.new("RGBA", (canvas_w, canvas_h), (0, 0, 0, 255))
     canvas.paste(background_resized, (offset_x, offset_y), background_resized)
 
-    # مواقع الأزياء على الصورة
+    # مواقع الأزياء على الصورة (تم تعديلها بدقة لخلفيتك)
     positions = [
-        {'x': 350, 'y': 30, 'height': 150, 'width': 150},
-        {'x': 575, 'y': 130, 'height': 150, 'width': 150},
-        {'x': 665, 'y': 350, 'height': 150, 'width': 150},
-        {'x': 575, 'y': 550, 'height': 150, 'width': 150},
-        {'x': 350, 'y': 654, 'height': 150, 'width': 150},
-        {'x': 135, 'y': 570, 'height': 150, 'width': 150},
-        {'x': 135, 'y': 130, 'height': 150, 'width': 150}
+        {'x': 185, 'y': 75, 'height': 140, 'width': 140},   # 0: الرأس / الخوذة
+        {'x': 310, 'y': 175, 'height': 140, 'width': 140},  # 1: الوجه / القناع
+        {'x': 395, 'y': 310, 'height': 140, 'width': 140},  # 2: الصدر العلوي
+        {'x': 345, 'y': 410, 'height': 140, 'width': 140},  # 3: منتصف الجسم
+        {'x': 245, 'y': 470, 'height': 140, 'width': 140},  # 4: أسفل الجسم
+        {'x': 130, 'y': 420, 'height': 120, 'width': 120},  # 5: الحذاء الأيسر
+        {'x': 75, 'y': 260, 'height': 120, 'width': 120}    # 6: الحذاء الأيمن
     ]
 
     for idx, future in enumerate(futures):
@@ -172,13 +171,7 @@ def outfit_image():
         resized = outfit_img.resize((paste_w, paste_h), Image.LANCZOS)
         canvas.paste(resized, (paste_x, paste_y), resized)
 
-    # إضافة اسم المطور على الصورة (أسفل اليمين)
-    try:
-        draw = ImageDraw.Draw(canvas)
-        # استخدام الخط الافتراضي (لأن الخطوط قد لا تكون متوفرة)
-        draw.text((canvas_w - 85, canvas_h - 25), DEV_NAME, fill="white", font=None)
-    except Exception as e:
-        print(f"خطأ في إضافة النص: {e}")
+    # تم إزالة كتابة اسم المطور نهائياً من الصورة
 
     output = BytesIO()
     canvas.save(output, format='PNG')
@@ -189,7 +182,6 @@ if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     print("="*50)
     print("🎨 OTMAN OUTFIT API")
-    print(f"👨‍💻 Developer: {DEV_NAME}")
     print(f"🔑 API Key: {API_KEY}")
     print(f"🌐 Running on port {port}")
     print("="*50)

@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify, send_file
 import requests
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image
 from io import BytesIO
 from concurrent.futures import ThreadPoolExecutor
 import os
@@ -9,16 +9,16 @@ app = Flask(__name__)
 executor = ThreadPoolExecutor(max_workers=10)
 session = requests.Session()
 
-# ========== إعدادات API (باسمك) ==========
-API_KEY = "OTMAN-V2"
-DEV_NAME = "@otman_v2"
-BACKGROUND_FILENAME = "outfit.png"
+# ========== إعدادات API (OTMAN) ==========
+API_KEY = "OTMAN-V2"                     # مفتاح API الخاص بك
+BACKGROUND_FILENAME = "outfit.png"       # الصورة الخلفية
 IMAGE_TIMEOUT = 8
 CANVAS_SIZE = (500, 500)
 BACKGROUND_MODE = 'cover'
 
-# ========== API معلومات اللاعب ==========
-PLAYER_INFO_URL = "http://23.111.152.146:8081/get?uid={uid}"
+# ========== API معلومات اللاعب (OTMAN) ==========
+# استخدم API معلومات اللاعب الخاص بك
+PLAYER_INFO_URL = "https://otman-info-api.vercel.app/player-info?uid={uid}"
 
 def fetch_player_info(uid: str):
     if not uid:
@@ -28,12 +28,12 @@ def fetch_player_info(uid: str):
         resp = session.get(url, timeout=IMAGE_TIMEOUT)
         resp.raise_for_status()
         data = resp.json()
+        # استخراج الأزياء حسب تنسيق API الخاص بك
         player_data = data.get("data", {})
         profile = player_data.get("profileInfo", {})
-        outfit_ids = profile.get("clothes", [])
-        return {"EquippedOutfit": outfit_ids}
+        return {"EquippedOutfit": profile.get("clothes", [])}
     except Exception as e:
-        print(f"خطأ: {e}")
+        print(f"خطأ في جلب معلومات اللاعب: {e}")
         return None
 
 def fetch_and_process_image(image_url: str, size: tuple = None):
@@ -52,7 +52,7 @@ def home():
     return jsonify({
         "name": "OTMAN OUTFIT API",
         "version": "2.0",
-        "developer": DEV_NAME,
+        "developer": "@otman_v2",
         "endpoints": {
             "/render?uid=UID&key=API_KEY": "جلب صورة اللاعب",
             "/health": "فحص حالة API"
@@ -63,7 +63,7 @@ def home():
 def health():
     return jsonify({
         "status": "healthy",
-        "developer": DEV_NAME,
+        "developer": "@otman_v2",
         "api_key": API_KEY
     })
 
@@ -84,10 +84,8 @@ def outfit_image():
 
     outfit_ids = player_data.get("EquippedOutfit", []) or []
 
-    # 9 أقسام للأزياء (8 أزياء + 1 وسط)
-    required_starts = ["211", "214", "211", "203", "204", "205", "203", "211", "211"]
-    fallback_ids = ["211000000", "214000000", "208000000", "203000000", 
-                    "204000000", "205000000", "212000000", "211000000", "211000000"]
+    required_starts = ["211", "214", "211", "203", "204", "205", "203"]
+    fallback_ids = ["211000000", "214000000", "208000000", "203000000", "204000000", "205000000", "212000000"]
 
     used_ids = set()
 
@@ -145,20 +143,15 @@ def outfit_image():
     canvas = Image.new("RGBA", (canvas_w, canvas_h), (0, 0, 0, 255))
     canvas.paste(background_resized, (offset_x, offset_y), background_resized)
 
-    # ============================================================
-    # 9 فراغات: 8 حول الشخصية + 1 وسط
-    # تم الحفاظ على نفس إحداثيات x و y (لم نغير شيئ)
-    # ============================================================
+    # مواقع الأزياء (7 فراغات حالياً)
     positions = [
-        {'x': 350, 'y': 30, 'height': 150, 'width': 150},     # 0: أعلى
-        {'x': 575, 'y': 130, 'height': 150, 'width': 150},    # 1: أعلى يمين
-        {'x': 665, 'y': 350, 'height': 150, 'width': 150},    # 2: يمين
-        {'x': 575, 'y': 550, 'height': 150, 'width': 150},    # 3: أسفل يمين
-        {'x': 350, 'y': 654, 'height': 150, 'width': 150},    # 4: أسفل
-        {'x': 135, 'y': 570, 'height': 150, 'width': 150},    # 5: أسفل يسار
-        {'x': 135, 'y': 130, 'height': 150, 'width': 150},    # 6: يسار
-        {'x': 350, 'y': 350, 'height': 180, 'width': 180},    # 7: الوسط (الشخصية الرئيسية)
-        {'x': 575, 'y': 350, 'height': 150, 'width': 150}     # 8: يمين الوسط (سلاح + رقصة)
+        {'x': 350, 'y': 30, 'height': 150, 'width': 150},
+        {'x': 575, 'y': 130, 'height': 150, 'width': 150},
+        {'x': 665, 'y': 350, 'height': 150, 'width': 150},
+        {'x': 575, 'y': 550, 'height': 150, 'width': 150},
+        {'x': 350, 'y': 654, 'height': 150, 'width': 150},
+        {'x': 135, 'y': 570, 'height': 150, 'width': 150},
+        {'x': 135, 'y': 130, 'height': 150, 'width': 150}
     ]
 
     for idx, future in enumerate(futures):
@@ -173,13 +166,6 @@ def outfit_image():
         resized = outfit_img.resize((paste_w, paste_h), Image.LANCZOS)
         canvas.paste(resized, (paste_x, paste_y), resized)
 
-    # إضافة اسم المطور على الصورة (أسفل اليمين)
-    try:
-        draw = ImageDraw.Draw(canvas)
-        draw.text((canvas_w - 85, canvas_h - 25), DEV_NAME, fill="white", font=None)
-    except Exception as e:
-        print(f"خطأ في إضافة النص: {e}")
-
     output = BytesIO()
     canvas.save(output, format='PNG')
     output.seek(0)
@@ -188,8 +174,7 @@ def outfit_image():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     print("="*50)
-    print("🎨 OTMAN OUTFIT API (9 فراغات)")
-    print(f"👨‍💻 Developer: {DEV_NAME}")
+    print("🎨 OTMAN OUTFIT API")
     print(f"🔑 API Key: {API_KEY}")
     print(f"🌐 Running on port {port}")
     print("="*50)

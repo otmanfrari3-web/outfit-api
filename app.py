@@ -10,7 +10,7 @@ executor = ThreadPoolExecutor(max_workers=10)
 session = requests.Session()
 
 # ========== إعدادات API (OTMAN) ==========
-API_KEY = "OTMAN-V2"                     # مفتاح API الخاص بك
+API_KEY = "OTMAN"                     # مفتاح API الخاص بك
 BACKGROUND_FILENAME = "outfit.png"       # الصورة الخلفية
 IMAGE_TIMEOUT = 8
 CANVAS_SIZE = (500, 500)
@@ -18,7 +18,7 @@ BACKGROUND_MODE = 'cover'
 
 # ========== API معلومات اللاعب (OTMAN) ==========
 # استخدم API معلومات اللاعب الخاص بك
-PLAYER_INFO_URL = "https://otman-info-api.vercel.app/player-info?uid={uid}"
+PLAYER_INFO_URL = "https://otman-info.vercel.app/player-info?uid={uid}"
 
 def fetch_player_info(uid: str):
     if not uid:

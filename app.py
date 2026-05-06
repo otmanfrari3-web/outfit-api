@@ -9,14 +9,12 @@ app = Flask(__name__)
 executor = ThreadPoolExecutor(max_workers=10)
 session = requests.Session()
 
-# ========== إعدادات API ==========
 API_KEY = "OTMAN-V2"
 BACKGROUND_FILENAME = "outfit.png"
 IMAGE_TIMEOUT = 8
 CANVAS_SIZE = (500, 500)
 BACKGROUND_MODE = 'cover'
 
-# ========== API معلومات اللاعب ==========
 PLAYER_INFO_URL = "https://otman-info.vercel.app/player-info?uid={uid}"
 
 def fetch_player_info(uid: str):
@@ -27,25 +25,13 @@ def fetch_player_info(uid: str):
         resp = session.get(url, timeout=IMAGE_TIMEOUT)
         resp.raise_for_status()
         data = resp.json()
-        
         basic = data.get("basicInfo", {})
         profile = data.get("profileInfo", {})
-        
         clothes = profile.get("clothes", [])
-        
-        # ✅ نستخدم headPic (رأس الشخصية) وليس avatarId
         head_id = basic.get("headPic", None)
-        
-        print(f"✅ UID: {uid}, Head ID: {head_id}")
-        print(f"   Clothes: {clothes}")
-        
-        return {
-            "EquippedOutfit": clothes,
-            "head_id": head_id
-        }
-        
+        return {"EquippedOutfit": clothes, "head_id": head_id}
     except Exception as e:
-        print(f"❌ خطأ: {e}")
+        print(f"خطأ: {e}")
         return None
 
 def fetch_and_process_image(image_url: str, size: tuple = None):
@@ -66,11 +52,10 @@ def get_item_image(item_id: str, size: tuple = None):
     return fetch_and_process_image(url, size)
 
 def get_head_image(head_id: str, size: tuple = None):
-    """جلب صورة رأس الشخصية (HeadPic)"""
     if not head_id:
         return None
-    # استخدام نفس مصدر الصور أو الرابط المناسب
-    url = f'https://raw.githubusercontent.com/saarthak703/character-api-danger/main/pngs/{head_id}.png'
+    # استخدام الرابط الصحيح لصور الرأس
+    url = f'https://iconapi.wasmer.app/{head_id}'
     return fetch_and_process_image(url, size)
 
 @app.route('/')
@@ -87,20 +72,14 @@ def home():
 
 @app.route('/health')
 def health():
-    return jsonify({
-        "status": "healthy",
-        "developer": "@otman_v2",
-        "api_key": API_KEY
-    })
+    return jsonify({"status": "healthy", "developer": "@otman_v2", "api_key": API_KEY})
 
 @app.route('/render', methods=['GET'])
 def outfit_image():
     uid = request.args.get('uid')
     key = request.args.get('key')
-
     if key != API_KEY:
         return jsonify({'error': 'Invalid API key'}), 401
-
     if not uid:
         return jsonify({'error': 'Missing uid'}), 400
 
@@ -113,7 +92,6 @@ def outfit_image():
 
     required_starts = ["211", "214", "211", "203", "204", "205", "203"]
     fallback_ids = ["211000000", "214000000", "208000000", "203000000", "204000000", "205000000", "212000000"]
-
     used_ids = set()
 
     def fetch_outfit_image(idx, code):
@@ -121,7 +99,7 @@ def outfit_image():
         for oid in outfit_ids:
             try:
                 str_oid = str(oid)
-            except Exception:
+            except:
                 continue
             if str_oid.startswith(code) and str_oid not in used_ids:
                 matched = str_oid
@@ -135,7 +113,6 @@ def outfit_image():
     for idx, code in enumerate(required_starts):
         futures.append(executor.submit(fetch_outfit_image, idx, code))
 
-    # جلب صورة الرأس
     head_future = executor.submit(get_head_image, head_id, size=(180, 180))
 
     # تحميل الخلفية
@@ -159,18 +136,17 @@ def outfit_image():
     canvas = Image.new("RGBA", (canvas_w, canvas_h), (0, 0, 0, 255))
     canvas.paste(background_resized, (offset_x, offset_y), background_resized)
 
-    # مواقع الأزياء (7 فراغات حول المركز)
+    # مواقع الأزياء
     positions = [
-        {'x': 350, 'y': 30, 'size': 150},   # أعلى
-        {'x': 575, 'y': 130, 'size': 150},  # أعلى يمين
-        {'x': 665, 'y': 350, 'size': 150},  # يمين
-        {'x': 575, 'y': 550, 'size': 150},  # أسفل يمين
-        {'x': 350, 'y': 654, 'size': 150},  # أسفل
-        {'x': 135, 'y': 570, 'size': 150},  # أسفل يسار
-        {'x': 135, 'y': 130, 'size': 150}   # يسار
+        {'x': 350, 'y': 30, 'size': 150},
+        {'x': 575, 'y': 130, 'size': 150},
+        {'x': 665, 'y': 350, 'size': 150},
+        {'x': 575, 'y': 550, 'size': 150},
+        {'x': 350, 'y': 654, 'size': 150},
+        {'x': 135, 'y': 570, 'size': 150},
+        {'x': 135, 'y': 130, 'size': 150},
     ]
 
-    # رسم الأزياء
     for idx, future in enumerate(futures):
         img = future.result()
         if not img:
@@ -182,21 +158,21 @@ def outfit_image():
         resized = img.resize((size, size), Image.LANCZOS)
         canvas.paste(resized, (paste_x, paste_y), resized)
 
-    # رسم رأس الشخصية في المنتصف
+    # رسم الرأس في المنتصف
     head_img = head_future.result()
     if head_img:
         head_size = int(180 * scale_x)
-        head_x = offset_x + int(350 * scale_x) - (head_size // 2) + 75
-        head_y = offset_y + int(350 * scale_y) - (head_size // 2) + 75
+        center_x = offset_x + int(350 * scale_x)
+        center_y = offset_y + int(350 * scale_y)
+        paste_x = center_x - head_size // 2
+        paste_y = center_y - head_size // 2
         head_resized = head_img.resize((head_size, head_size), Image.LANCZOS)
-        
         # جعل الصورة دائرية
         mask = Image.new("L", (head_size, head_size), 0)
         mask_draw = ImageDraw.Draw(mask)
         mask_draw.ellipse((0, 0, head_size, head_size), fill=255)
         head_resized.putalpha(mask)
-        
-        canvas.paste(head_resized, (head_x, head_y), head_resized)
+        canvas.paste(head_resized, (paste_x, paste_y), head_resized)
 
     output = BytesIO()
     canvas.save(output, format='PNG')

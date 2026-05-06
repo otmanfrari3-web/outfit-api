@@ -18,7 +18,7 @@ BACKGROUND_MODE = 'cover'
 
 # ========== API معلومات اللاعب (OTMAN) ==========
 # استخدم API معلومات اللاعب الخاص بك
-PLAYER_INFO_URL = f"https://info-api-by-jagwar.vercel.app/player-info?uid={uid}"
+PLAYER_INFO_URL = "https://info-api-by-jagwar.vercel.app/player-info?uid={uid}"
 
 def fetch_player_info(uid: str):
     if not uid:

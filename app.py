@@ -10,30 +10,35 @@ executor = ThreadPoolExecutor(max_workers=10)
 session = requests.Session()
 
 # ========== إعدادات API (OTMAN) ==========
-API_KEY = "OTMAN"                     # مفتاح API الخاص بك
-BACKGROUND_FILENAME = "outfit.png"       # الصورة الخلفية
+API_KEY = "OTMAN-V2"
+BACKGROUND_FILENAME = "outfit.png"
 IMAGE_TIMEOUT = 8
 CANVAS_SIZE = (500, 500)
 BACKGROUND_MODE = 'cover'
 
-# ========== API معلومات اللاعب (OTMAN) ==========
-# استخدم API معلومات اللاعب الخاص بك
-PLAYER_INFO_URL = "https://info-api-by-jagwar.vercel.app/player-info?uid={uid}"
+# ========== API معلومات اللاعب (الخاص بك والشغال) ==========
+PLAYER_INFO_URL = "https://otman-info.vercel.app/player-info?uid={uid}"
 
 def fetch_player_info(uid: str):
+    """جلب معلومات اللاعب واستخراج الـ clothes مباشرة"""
     if not uid:
         return None
     try:
         url = PLAYER_INFO_URL.format(uid=uid)
+        print(f"📡 جلب معلومات اللاعب: {url}")
+        
         resp = session.get(url, timeout=IMAGE_TIMEOUT)
         resp.raise_for_status()
         data = resp.json()
-        # استخراج الأزياء حسب تنسيق API الخاص بك
-        player_data = data.get("data", {})
-        profile = player_data.get("profileInfo", {})
-        return {"EquippedOutfit": profile.get("clothes", [])}
+        
+        # الوصول المباشر إلى profileInfo.clothes (بدون wrapping)
+        clothes = data.get("profileInfo", {}).get("clothes", [])
+        
+        print(f"✅ UID: {uid}, Clothes: {clothes}")
+        return {"EquippedOutfit": clothes}
+        
     except Exception as e:
-        print(f"خطأ في جلب معلومات اللاعب: {e}")
+        print(f"❌ خطأ في جلب معلومات اللاعب {uid}: {e}")
         return None
 
 def fetch_and_process_image(image_url: str, size: tuple = None):
@@ -44,7 +49,8 @@ def fetch_and_process_image(image_url: str, size: tuple = None):
         if size:
             img = img.resize(size, Image.LANCZOS)
         return img
-    except Exception:
+    except Exception as e:
+        print(f"❌ خطأ في جلب الصورة {image_url}: {e}")
         return None
 
 @app.route('/')
@@ -71,6 +77,8 @@ def health():
 def outfit_image():
     uid = request.args.get('uid')
     key = request.args.get('key')
+
+    print(f"🖼️ طلب صورة لـ UID: {uid}, Key: {key}")
 
     if key != API_KEY:
         return jsonify({'error': 'Invalid or missing API key'}), 401
@@ -99,9 +107,11 @@ def outfit_image():
             if str_oid.startswith(code) and str_oid not in used_ids:
                 matched = str_oid
                 used_ids.add(str_oid)
+                print(f"🎽 قطعة {idx}: مطابقة {matched} (تبدأ بـ {code})")
                 break
         if matched is None:
             matched = fallback_ids[idx]
+            print(f"🎽 قطعة {idx}: استخدام البديل {matched}")
         image_url = f'https://iconapi.wasmer.app/{matched}'
         return fetch_and_process_image(image_url, size=(150, 150))
 
@@ -113,6 +123,7 @@ def outfit_image():
     bg_path = os.path.join(os.path.dirname(__file__), BACKGROUND_FILENAME)
     try:
         background_image = Image.open(bg_path).convert("RGBA")
+        print("✅ تم تحميل الصورة الخلفية")
     except FileNotFoundError:
         return jsonify({'error': f'Background image not found: {BACKGROUND_FILENAME}'}), 500
     except Exception as e:
@@ -143,7 +154,7 @@ def outfit_image():
     canvas = Image.new("RGBA", (canvas_w, canvas_h), (0, 0, 0, 255))
     canvas.paste(background_resized, (offset_x, offset_y), background_resized)
 
-    # مواقع الأزياء (7 فراغات حالياً)
+    # مواقع الأزياء (7 فراغات حول الشخصية)
     positions = [
         {'x': 350, 'y': 30, 'height': 150, 'width': 150},
         {'x': 575, 'y': 130, 'height': 150, 'width': 150},
@@ -169,13 +180,15 @@ def outfit_image():
     output = BytesIO()
     canvas.save(output, format='PNG')
     output.seek(0)
+    print("✅ تم إنشاء الصورة بنجاح")
     return send_file(output, mimetype='image/png')
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     print("="*50)
-    print("🎨 OTMAN OUTFIT API")
+    print("🎨 OTMAN OUTFIT API v2.0")
     print(f"🔑 API Key: {API_KEY}")
+    print(f"📡 Info API: {PLAYER_INFO_URL}")
     print(f"🌐 Running on port {port}")
     print("="*50)
     app.run(host='0.0.0.0', port=port, debug=False)
